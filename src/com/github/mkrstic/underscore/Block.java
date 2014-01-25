@@ -1,5 +1,5 @@
 package com.github.mkrstic.underscore;
 
 public interface Block<T> {
-	void apply(T input);
+	void apply(T arg);
 }
