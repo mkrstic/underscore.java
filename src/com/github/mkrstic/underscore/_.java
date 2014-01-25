@@ -4,7 +4,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.List;
+import java.util.concurrent.SynchronousQueue;
 
 public class _ {
 
@@ -558,7 +558,7 @@ public class _ {
     }
 
     public static <E> E[] without(final E[] array, final E value) {
-        return without(array, (E[])Arrays.asList(value).toArray());
+        return without(array, (E[]) Arrays.asList(value).toArray());
     }
 
     public static <E> List<E> union(final List<E> list1, final List<E> list2) {
@@ -607,12 +607,13 @@ public class _ {
     }
 
     public static <T> List<List<T>> zip(final List<T>... lists) {
-        final List<List<T> > zipped = new ArrayList<List<T> >();
-        _.each(Arrays.asList(lists), new Block<List<T> >() {
+        final List<List<T>> zipped = new ArrayList<List<T>>();
+        _.each(Arrays.asList(lists), new Block<List<T>>() {
             @Override
             public void apply(final List<T> list) {
                 _.each(list, new Block<T>() {
                     int index = 0;
+
                     @Override
                     public void apply(T elem) {
                         final List<T> nTuple = index >= zipped.size() ? new ArrayList<T>() : zipped.get(index);
@@ -628,9 +629,10 @@ public class _ {
         return (T[][]) zip(Arrays.asList(lists)).toArray();
     }
 
-    public static <K, V> List<Tuple<K,V> > object(final List<K> keys, final List<V> values) {
+    public static <K, V> List<Tuple<K, V>> object(final List<K> keys, final List<V> values) {
         return _.map(keys, new Function1<K, Tuple<K, V>>() {
             int index = 0;
+
             @Override
             public Tuple<K, V> apply(K key) {
                 return Tuple.create(key, values.get(index++));
@@ -638,8 +640,8 @@ public class _ {
         });
     }
 
-    public static <K, V> Tuple<K,V>[] object(final K[] keys, final V[] values) {
-        return (Tuple<K,V>[]) object(Arrays.asList(keys), Arrays.asList(values)).toArray();
+    public static <K, V> Tuple<K, V>[] object(final K[] keys, final V[] values) {
+        return (Tuple<K, V>[]) object(Arrays.asList(keys), Arrays.asList(values)).toArray();
     }
 
     public static <E> int indexOf(final List<E> list, final E value) {
@@ -660,7 +662,7 @@ public class _ {
 
     public static <E extends Comparable<E>> int sortedIndex(final List<E> list, final E value) {
         int index = 0;
-        for (E elem: list) {
+        for (E elem : list) {
             if (elem.compareTo(value) >= 0) {
                 return index;
             }
@@ -668,6 +670,7 @@ public class _ {
         }
         return -1;
     }
+
     public static <E extends Comparable<E>> int sortedIndex(final E[] array, final E value) {
         return sortedIndex(Arrays.asList(array), value);
     }
@@ -676,7 +679,7 @@ public class _ {
         final Field property = value.getClass().getField(propertyName);
         final Object valueProperty = property.get(value);
         int index = 0;
-        for (E elem: list) {
+        for (E elem : list) {
             if (((Comparable) property.get(elem)).compareTo(valueProperty) >= 0) {
                 return index;
             }
@@ -697,14 +700,68 @@ public class _ {
     }
 
     public static int[] range(int start, int stop, int step) {
-        int[] array = new int[stop-start];
+        int[] array = new int[stop - start];
         for (int index = 0; index < array.length; index += step) {
             array[index] = start + index;
         }
         return array;
     }
 
-    public static int[] haskellRange(int start, int next, int stop) {
-        return range(start, stop, next-start);
+    public static <F1, T> Function<T> partial(final Function1<F1, T> func, final F1 value) {
+        return new Function<T>() {
+            @Override
+            public T apply() {
+                return func.apply(value);
+            }
+        };
+    }
+
+    public static <F2, F1, T> Function1<F1, T> partial(final Function2<F2, F1, T> func, final F2 value) {
+        return new Function1<F1, T>() {
+            @Override
+            public T apply(F1 arg) {
+                return func.apply(value, arg);
+            }
+        };
+    }
+
+    public static <F3, F2, F1, T> Function2<F2, F1, T> partial(final Function3<F3, F2, F1, T> func, final F3 value) {
+        return new Function2<F2, F1, T>() {
+            @Override
+            public T apply(F2 arg1, F1 arg2) {
+                return func.apply(value, arg1, arg2);
+            }
+        };
+    }
+
+    public static <F4, F3, F2, F1, T> Function3<F3, F2, F1, T> partial(final Function4<F4, F3, F2, F1, T> func, final F4 value) {
+        return new Function3<F3, F2, F1, T>() {
+            @Override
+            public T apply(F3 arg1, F2 arg2, F1 arg3) {
+                return func.apply(value, arg1, arg2, arg3);
+            }
+        };
+    }
+
+    public static <T> T partial(final Object function, final Class<T> unused, final Object... args) {
+        try {
+            if (args.length == 0) {
+                throw new IllegalArgumentException("partial method must have at least one argument");
+            }
+            Object currentFunc = function;
+            for (final Object arg : args) {
+                final Method partialMethod = _.class.getMethod("partial",
+                        new Class[]{currentFunc.getClass().getInterfaces()[0], Object.class});
+                currentFunc = partialMethod.invoke(null, new Object[]{currentFunc, arg});
+            }
+            return (T) currentFunc;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
